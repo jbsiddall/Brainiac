@@ -1,0 +1,26 @@
+{
+  "name": "Brainiac",
+  "version": "1.0.0",
+  "description": "A lightweight, type-safe ORM for LMDB with Zod validation and schema migrations",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["lmdb", "typescript", "orm", "zod"],
+  "author": "Joseph Siddall <j.b.siddall@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/ramda": "^0.30.2",
+    "lmdb": "^3.1.6",
+    "markdown-doctest": "^1.1.0"
+  },
+  "peerDependencies": {
+    "lmdb": "^3.1.6"
+  },
+  "dependencies": {
+    "ramda": "^0.30.1",
+    "uuid": "^11.0.3",
+    "zod": "^3.23.8"
+  }
+}
