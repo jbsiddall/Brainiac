@@ -10,7 +10,7 @@ Brainiac is a TypeScript-first ORM for LMDB that brings the safety and convenien
 
 ## ✨ Features
 
-- 🏃‍♂️ **Zero Runtime Overhead** - Brainiac is designed to be as thin as possible while providing maximum safety
+- 🏃 **Minimal Runtime Overhead** - Brainiac is designed to be as thin as possible, with runtime checks only where they ensure data integrity
 - 🔒 **Type-Safe by Default** - Full TypeScript support with inferred types from your schemas
 - ✅ **Runtime Validation** - Zod schemas ensure your data is always valid, both reading and writing
 - 🔄 **Safe Migrations** - Transaction-based migrations with automatic validation of affected models
