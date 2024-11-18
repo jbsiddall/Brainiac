@@ -4,7 +4,7 @@ import {z} from 'zod'
 
 const env = open('mydb', {})
 
-export const Person = defineModel({ name: 'person'})({
+export const Person = defineModel({ model: 'person'})({
   $id: z.string(),
   $model: z.string(),
   name: z.string(),
@@ -12,7 +12,7 @@ export const Person = defineModel({ name: 'person'})({
 })
 
 const helper = new ModelHelper(env, Person)
-helper.put({name: "joseph", age: 55})
+helper.put({name: 'foo', age: 55})
 
 env.getRange().forEach(x => {
   console.log(x)

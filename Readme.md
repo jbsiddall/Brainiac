@@ -20,12 +20,12 @@ Brainiac is a TypeScript-first ORM for LMDB that brings the safety and convenien
 ## 🚀 Quick Start
 
 ```bash
-npm install brainiac lmdb zod
+npm install jbsiddall/Brainiac lmdb zod
 ```
 
 ```typescript
 import { open } from 'lmdb'
-import { defineModel, ModelHelper } from 'brainiac'
+import { defineModel, ModelHelper } from 'Brainiac'
 import { z } from 'zod'
 
 // Define your model with type-safe schema
@@ -87,7 +87,7 @@ if (value.$model !== 'person') {
 Migrations in Brainiac are simple yet powerful:
 
 ```typescript
-import { migrate } from 'brainiac'
+import { migrate } from 'Brainiac'
 
 // Define your migration
 const addPhoneNumber = {
@@ -183,13 +183,13 @@ Runs migrations in order, with automatic validation and rollback on failure.
 
 ```bash
 # npm
-npm install brainiac lmdb zod
+npm install jbsiddall/Brainiac lmdb zod
 
 # yarn
-yarn add brainiac lmdb zod
+yarn add jbsiddall/Brainiac lmdb zod
 
 # pnpm
-pnpm add brainiac lmdb zod
+pnpm add jbsiddall/Brainiac lmdb zod
 ```
 
 ## 📄 License

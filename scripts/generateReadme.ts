@@ -12,4 +12,3 @@ const output = Mustache.render(
 )
 
 writeFileSync('./Readme.md', output, 'utf-8')
-console.log(output)
