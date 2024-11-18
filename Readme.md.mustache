@@ -25,11 +25,11 @@ npm install jbsiddall/Brainiac lmdb zod
 
 ```typescript
 import { open } from 'lmdb'
-import { defineModel, ModelHelper } from 'Brainiac'
+import { defineModel } from 'Brainiac'
 import { z } from 'zod'
 
 // Define your model with type-safe schema
-const Person = defineModel({ name: 'person' })({
+const Person = defineModel({ model: 'person' })({
   name: z.string(),
   age: z.number(),
   email: z.string().email(),
@@ -40,7 +40,7 @@ const Person = defineModel({ name: 'person' })({
 const db = open('mydb')
 
 // Create a helper for working with Person records
-const people = new ModelHelper(db, Person)
+const people = Person.helper(db)
 
 // Create a new person
 people.put({
@@ -84,23 +84,30 @@ if (value.$model !== 'person') {
 ```
 
 ### Transaction-Safe Migrations
-Migrations in Brainiac are simple yet powerful:
+
+Migrations in Brainiac are simple yet powerful. Here's a complete example:
 
 ```typescript
-import { migrate } from 'Brainiac'
+import { defineModel, migrate, Migration } from 'Brainiac'
+import { z } from 'zod'
+import { open } from 'lmdb'
 
-// Define your migration
-const addPhoneNumber = {
-  name: 'add-phone-number',
-  modelsBeforeMigration: [PersonV1],
-  modelsAfterMigration: [PersonV2],
-  migration: () => {
-    // Your migration logic here
-    // If anything fails, the entire transaction rolls back
+const Product = defineModel({ model: 'product' })({
+  name: z.string(),
+  price: z.number(),
+})
+
+const baseMigration = {
+  name: 'populate_products',
+  migration({ db }) {
+    const product = Product.helper(db)
+    product.put({ name: 'milk', price: 1.25 })
+    product.put({ name: 'cheese', price: 3 })
   }
-}
+} satisfies Migration
 
-migrate(db, [addPhoneNumber])
+const db = open('mydb', {})
+migrate(db, [baseMigration])
 ```
 
 ## 🤝 Hybrid Usage
@@ -130,8 +137,8 @@ Brainiac uses a `$` prefix for its keys to prevent collisions with your direct L
 ### Custom ID Generation
 
 ```typescript
-const helper = new ModelHelper(db, Person)
-helper.put({
+const people = Person.helper(db)
+people.put({
   $id: 'custom-id', // Optional - defaults to UUID
   name: "Joseph",
   age: 55
@@ -145,7 +152,8 @@ const migration = {
   name: 'normalize-emails',
   modelsBeforeMigration: [PersonV1],
   modelsAfterMigration: [PersonV2],
-  migration: () => {
+  migration: ({ db }) => {
+    const people = PersonV1.helper(db)
     for (const person of people.all()) {
       people.put({
         ...person.value,
@@ -162,19 +170,19 @@ const migration = {
 Creates a new model definition with Zod schema validation:
 
 ```typescript
-const Model = defineModel({ name: 'modelName' })({
+const Model = defineModel({ model: 'modelName' })({
   field1: z.string(),
   field2: z.number(),
   // ... more fields
 })
 ```
 
-### `ModelHelper`
-Provides type-safe CRUD operations for a model:
+### Model Helper Methods
+Each model provides access to type-safe CRUD operations through its helper:
 
-- `get(id: string)`: Retrieve a record by ID
-- `put(value: T)`: Create or update a record
-- `all()`: Iterate over all records of this model
+- `Model.helper(db).get(id)`: Retrieve a record by ID
+- `Model.helper(db).put(value)`: Create or update a record
+- `Model.helper(db).all()`: Iterate over all records of this model
 
 ### `migrate(db, migrations)`
 Runs migrations in order, with automatic validation and rollback on failure.
