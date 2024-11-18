@@ -4,16 +4,23 @@
   "description": "A lightweight, type-safe ORM for LMDB with Zod validation and schema migrations",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "sync": "pnpm dlx tsx ./scripts/generateReadme.ts"
   },
-  "keywords": ["lmdb", "typescript", "orm", "zod"],
+  "keywords": [
+    "lmdb",
+    "typescript",
+    "orm",
+    "zod"
+  ],
   "author": "Joseph Siddall <j.b.siddall@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "@types/mustache": "^4.2.5",
     "@types/node": "^22.9.0",
     "@types/ramda": "^0.30.2",
     "lmdb": "^3.1.6",
-    "markdown-doctest": "^1.1.0"
+    "markdown-doctest": "^1.1.0",
+    "mustache": "^4.2.0"
   },
   "peerDependencies": {
     "lmdb": "^3.1.6"

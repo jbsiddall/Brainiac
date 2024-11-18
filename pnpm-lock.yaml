@@ -18,6 +18,9 @@ importers:
         specifier: ^3.23.8
         version: 3.23.8
     devDependencies:
+      '@types/mustache':
+        specifier: ^4.2.5
+        version: 4.2.5
       '@types/node':
         specifier: ^22.9.0
         version: 22.9.0
@@ -30,6 +33,9 @@ importers:
       markdown-doctest:
         specifier: ^1.1.0
         version: 1.1.0
+      mustache:
+        specifier: ^4.2.0
+        version: 4.2.0
 
 packages:
 
@@ -608,6 +614,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@types/mustache@4.2.5':
+    resolution: {integrity: sha512-PLwiVvTBg59tGFL/8VpcGvqOu3L4OuveNvPi0EYbWchRdEVP++yRUXJPFl+CApKEq13017/4Nf7aQ5lTtHUNsA==}
+
   '@types/node@22.9.0':
     resolution: {integrity: sha512-vuyHg81vvWA1Z1ELfvLko2c8f34gyA0zaic0+Rllc5lbCnbSyuvb2Oxpm6TAUAC/2xZN3QGqxBNggD1nNR2AfQ==}
 
@@ -774,6 +783,10 @@ packages:
 
   msgpackr@1.11.2:
     resolution: {integrity: sha512-F9UngXRlPyWCDEASDpTf6c9uNhGPTqnTeLVt7bN+bU1eajoR/8V9ys2BRaV5C/e5ihE6sJ9uPIKaYt6bFuO32g==}
+
+  mustache@4.2.0:
+    resolution: {integrity: sha512-71ippSywq5Yb7/tVYyGbkBggbU8H3u5Rz56fH60jGFgr8uHwxs+aSKeqmluIVzM0m0kB7xQjKS6qPfd0b2ZoqQ==}
+    hasBin: true
 
   node-addon-api@6.1.0:
     resolution: {integrity: sha512-+eawOlIgy680F0kBzPUNFhMZGtJ1YmqM6l4+Crf4IkImjYrO/mqPwRMh352g23uIaQKFItcQ64I7KMaJxHgAVA==}
@@ -1608,6 +1621,8 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.3':
     optional: true
 
+  '@types/mustache@4.2.5': {}
+
   '@types/node@22.9.0':
     dependencies:
       undici-types: 6.19.8
@@ -1788,6 +1803,8 @@ snapshots:
   msgpackr@1.11.2:
     optionalDependencies:
       msgpackr-extract: 3.0.3
+
+  mustache@4.2.0: {}
 
   node-addon-api@6.1.0: {}
 
