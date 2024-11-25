@@ -132,6 +132,16 @@ Brainiac uses a `$` prefix for its keys to prevent collisions with your direct L
 - **When you need flexibility**: Mix ORM and raw key-value access as needed
 - **When you need simplicity**: No complex setup or configurations required
 
+## 🚀 Benchmarks
+
+```
+writing 1000 Person Records | sync | Brainiac 1763.8 ms
+writing 1000 Person Records | sync | No Brainiac 1764.2 ms
+writing 1000 Person Records | batched | sync | Brainiac 6.2 ms
+writing 1000 Person Records | batched | sync | No Brainiac 4 ms
+
+```
+
 ## 🔍 Advanced Usage
 
 ### Custom ID Generation

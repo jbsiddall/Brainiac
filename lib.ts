@@ -1,7 +1,7 @@
-import {Database} from 'lmdb'
-import {equals} from 'ramda'
-import {z, ZodObject, ZodType} from 'zod' 
-import {v4 as randomId} from 'uuid'
+import { Database } from 'lmdb'
+import { equals } from 'ramda'
+import { z, ZodObject, ZodType } from 'zod'
+import { v4 as randomId } from 'uuid'
 
 
 const RECORD_PREFIX = '$'
@@ -25,7 +25,7 @@ export class ModelHelper<M extends Model> {
   constructor(private db: Database, private model: M) { }
 
   get(id: string) {
-    return get({db: this.db, type: this.model, id})
+    return get({ db: this.db, type: this.model, id })
   }
 
   put(value: Omit<z.infer<M['schema']>, '$id' | '$model'> & Partial<z.infer<BaseModelInstanceSchema>>) {
@@ -41,12 +41,12 @@ export class ModelHelper<M extends Model> {
   }
 
   all() {
-    return all({db: this.db, model: this.model})
+    return all({ db: this.db, model: this.model })
   }
 }
 
 
-export const defineModel = <Name extends string>({model}: {model: Name}) => <const Schema extends Record<string, ZodType>>(schema: Schema) => {
+export const defineModel = <Name extends string>({ model }: { model: Name }) => <const Schema extends Record<string, ZodType>>(schema: Schema) => {
   if (model.includes(RECORD_PREFIX)) {
     throw new Error(`model ${model} contains illegal characters reserved for ORM '${RECORD_PREFIX}'`)
   }
@@ -56,10 +56,10 @@ export const defineModel = <Name extends string>({model}: {model: Name}) => <con
     throw new Error(`model ${model} can't contain any properties that are prefixed with $`)
   }
 
-  return defineModelUnsafe({model})(schema)
+  return defineModelUnsafe({ model })(schema)
 }
 
-const defineModelUnsafe = <Name extends string>({model}: {model: Name}) => <const Schema extends Record<string, ZodType>>(schema: Schema) => {
+const defineModelUnsafe = <Name extends string>({ model }: { model: Name }) => <const Schema extends Record<string, ZodType>>(schema: Schema) => {
   const finalSchema = baseModelInstanceValidator.extend(schema) as any as (BaseModelInstanceSchema & ZodObject<Schema>)
 
   const definedModel: Model<Name, BaseModelInstanceSchema & ZodObject<Schema>> = {
@@ -72,8 +72,8 @@ const defineModelUnsafe = <Name extends string>({model}: {model: Name}) => <cons
   return definedModel
 }
 
-export function* all<T extends Model>({db, model}: {db: Database, model: T}) {
-  for (const entry of db.getRange({start: firstModelKey(model)})) {
+export function* all<T extends Model>({ db, model }: { db: Database, model: T }) {
+  for (const entry of db.getRange({ start: firstModelKey(model) })) {
     const baseParseResult = baseModelInstanceValidator.safeParse(entry.value)
     if (!baseParseResult.success) {
       /* left the collection range */
@@ -85,17 +85,17 @@ export function* all<T extends Model>({db, model}: {db: Database, model: T}) {
     }
 
     const value = model.schema.parse(entry.value)
-    const key  = getKey({model, id: value.$id})
+    const key = getKey({ model, id: value.$id })
     if (!equals(entry.key, key)) {
       throw new Error(`internal data integrity problem. retriveved model ${model.model} with key ${String(entry.key)} but expected key was ${key}`)
     }
-    yield {key, value, version: entry.version}
+    yield { key, value, version: entry.version }
   }
   return
 }
 
-export const get = <T extends Model<any, any>>({db, type, id}: {db: Database, type: T, id: string}): undefined | z.infer<T['schema']> => {
-  const key =getKey({model: type, id})
+export const get = <T extends Model<any, any>>({ db, type, id }: { db: Database, type: T, id: string }): undefined | z.infer<T['schema']> => {
+  const key = getKey({ model: type, id })
   const value = db.get(key)
   if (value === undefined) {
     return undefined
@@ -103,19 +103,19 @@ export const get = <T extends Model<any, any>>({db, type, id}: {db: Database, ty
   return type.schema.parse(value)
 }
 
-export const put = <T extends Model>({db, type, value}: {db: Database, type: T, value: z.infer<T['schema']>}) => {
+export const put = <T extends Model>({ db, type, value }: { db: Database, type: T, value: z.infer<T['schema']> }) => {
   const parseResults = type.schema.safeParse(value)
   if (!parseResults.success) {
-    return {success: false as const, error: parseResults.error, value}
+    return { success: false as const, error: parseResults.error, value }
   }
 
-  const key = getKey({model: type, id: value.$id})
+  const key = getKey({ model: type, id: value.$id })
   db.putSync(key, parseResults.data)
 
-  return {success: true as const, error: undefined, value}
+  return { success: true as const, error: undefined, value }
 }
 
-const getKey = ({model, id}: {model: Model, id: string}) => {
+const getKey = ({ model, id }: { model: Model, id: string }) => {
   return [RECORD_PREFIX, model.model, id]
 }
 const firstModelKey = (model: Model) => [RECORD_PREFIX, model.model]
@@ -125,19 +125,19 @@ interface Migration {
   name: string
   modelsBeforeMigration?: Model[]
   modelsAfterMigration?: Model[]
-  migration: ({db}: {db: Database}) => void
+  migration: ({ db }: { db: Database }) => void
 }
 
 
 class MigrationRunner {
 
-  MigrationModel = defineModelUnsafe({model: '$migrations'})({
+  MigrationModel = defineModelUnsafe({ model: '$migrations' })({
     migrationsRun: z.string().array(),
     modelVersions: z.record(z.string()),
   })
 
   loadRunMigrations() {
-    const existing = this.MigrationModel.helper(this.db).get('singleton') 
+    const existing = this.MigrationModel.helper(this.db).get('singleton')
     if (!existing) {
       const result = this.MigrationModel.helper(this.db).put({
         $id: 'singleton',
@@ -210,21 +210,21 @@ class MigrationRunner {
         return
       }
 
-      ;(migration.modelsBeforeMigration ?? []).forEach(model => {
+      ; (migration.modelsBeforeMigration ?? []).forEach(model => {
         const helper = new ModelHelper(this.db, model)
         for (let entry of helper.all()) {
           // implicitly validating all model records
         }
       })
 
-      migration.migration({db: this.db})
+      migration.migration({ db: this.db })
 
-      ;(migration.modelsAfterMigration ?? []).forEach(model => {
-        const helper = new ModelHelper(this.db, model)
-        for (let entry of helper.all()) {
-          // implicitly validating all model records
-        }
-      })
+        ; (migration.modelsAfterMigration ?? []).forEach(model => {
+          const helper = new ModelHelper(this.db, model)
+          for (let entry of helper.all()) {
+            // implicitly validating all model records
+          }
+        })
 
       this.updateRunMigrations(migration.name)
     })
