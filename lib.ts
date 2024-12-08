@@ -1,6 +1,6 @@
 import { Database } from 'lmdb'
-import { equals } from 'ramda'
-import { z, ZodObject, ZodType } from 'zod'
+import { equals, mapObjIndexed } from 'ramda'
+import { z, ZodType } from 'zod'
 import { v4 as randomId } from 'uuid'
 
 
@@ -14,88 +14,89 @@ const baseModelInstanceValidator = z.object({
 
 type BaseModelInstanceSchema = typeof baseModelInstanceValidator
 
-interface Model<Name extends string = string, Schema extends BaseModelInstanceSchema = BaseModelInstanceSchema> {
-  model: Name,
+
+interface SchemaModelDefinition<Schema extends BaseModelInstanceSchema = BaseModelInstanceSchema> {
   schema: Schema,
-  helper(db: Database): ModelHelper<Model<Name, Schema>>
 }
 
-export class ModelHelper<M extends Model> {
+export class ModelHelper<M extends SchemaModelDefinition> {
 
-  constructor(private db: Database, private model: M) { }
+  constructor(private db: Database, private name: string, private model: M) { }
 
   get(id: string) {
-    return get({ db: this.db, type: this.model, id })
+    return get({ db: this.db, type: this.model, id, name: this.name })
   }
 
   put(value: Omit<z.infer<M['schema']>, '$id' | '$model'> & Partial<z.infer<BaseModelInstanceSchema>>) {
     return put({
       db: this.db,
       type: this.model,
+      name: this.name,
       value: {
         ...value,
         $id: value['$id'] ?? randomId(),
-        $model: value['$model'] ?? this.model.model,
+        $model: value['$model'] ?? this.name,
       }
     })
   }
 
   all() {
-    return all({ db: this.db, model: this.model })
+    return all({ db: this.db, model: this.model, name: this.name })
   }
 }
 
+export const defineSchema = <Models extends Record<string, SchemaModelDefinition>>(models: Models, options?: { allowUnsafeModelName: boolean }) => ({ db }: { db: Database }) => {
 
-export const defineModel = <Name extends string>({ model }: { model: Name }) => <const Schema extends Record<string, ZodType>>(schema: Schema) => {
-  if (model.includes(RECORD_PREFIX)) {
-    throw new Error(`model ${model} contains illegal characters reserved for ORM '${RECORD_PREFIX}'`)
-  }
 
-  const props = Object.keys(schema)
-  if (props.includes('$id') || props.includes('$model')) {
-    throw new Error(`model ${model} can't contain any properties that are prefixed with $`)
-  }
-
-  return defineModelUnsafe({ model })(schema)
-}
-
-const defineModelUnsafe = <Name extends string>({ model }: { model: Name }) => <const Schema extends Record<string, ZodType>>(schema: Schema) => {
-  const finalSchema = baseModelInstanceValidator.extend(schema) as any as (BaseModelInstanceSchema & ZodObject<Schema>)
-
-  const definedModel: Model<Name, BaseModelInstanceSchema & ZodObject<Schema>> = {
-    model: model,
-    schema: finalSchema,
-    helper(db) {
-      return new ModelHelper(db, definedModel)
+  const foo = mapObjIndexed((def, name) => {
+    if (!options?.allowUnsafeModelName && name.includes(RECORD_PREFIX)) {
+      throw new Error(`model ${name} contains illegal characters reserved for ORM '${RECORD_PREFIX}'`)
     }
-  }
-  return definedModel
+
+    return new ModelHelper(db, name, def)
+
+  }, models)
+
+  return foo as { [K in keyof Models]: ModelHelper<Models[K]> }
 }
 
-export function* all<T extends Model>({ db, model }: { db: Database, model: T }) {
-  for (const entry of db.getRange({ start: firstModelKey(model) })) {
+
+export const defineModel = <const Schema extends Record<string, ZodType>>(schema: Schema) => {
+  const unallowedProps = Object.keys(schema).filter(p => p.startsWith(RECORD_PREFIX))
+  if (unallowedProps.length > 0) {
+    throw new Error(`model can't contain any properties that are prefixed with $. found props: ${unallowedProps.join(', ')}`)
+  }
+
+  return {
+    schema: baseModelInstanceValidator.extend(schema),
+  }
+}
+
+
+export function* all<T extends SchemaModelDefinition>({ db, model, name }: { db: Database, model: T, name: string }) {
+  for (const entry of db.getRange({ start: firstModelKey(name) })) {
     const baseParseResult = baseModelInstanceValidator.safeParse(entry.value)
     if (!baseParseResult.success) {
       /* left the collection range */
       return
     }
-    if (baseParseResult.data.$model !== model.model) {
+    if (baseParseResult.data.$model !== name) {
       /* left the collection range */
       return
     }
 
     const value = model.schema.parse(entry.value)
-    const key = getKey({ model, id: value.$id })
+    const key = getKey({ name, id: value.$id })
     if (!equals(entry.key, key)) {
-      throw new Error(`internal data integrity problem. retriveved model ${model.model} with key ${String(entry.key)} but expected key was ${key}`)
+      throw new Error(`internal data integrity problem. retriveved model ${name} with key ${String(entry.key)} but expected key was ${key}`)
     }
     yield { key, value, version: entry.version }
   }
   return
 }
 
-export const get = <T extends Model<any, any>>({ db, type, id }: { db: Database, type: T, id: string }): undefined | z.infer<T['schema']> => {
-  const key = getKey({ model: type, id })
+export const get = <T extends SchemaModelDefinition>({ db, name, type, id }: { db: Database, name: string, type: T, id: string }): undefined | z.infer<T['schema']> => {
+  const key = getKey({ name, id })
   const value = db.get(key)
   if (value === undefined) {
     return undefined
@@ -103,43 +104,48 @@ export const get = <T extends Model<any, any>>({ db, type, id }: { db: Database,
   return type.schema.parse(value)
 }
 
-export const put = <T extends Model>({ db, type, value }: { db: Database, type: T, value: z.infer<T['schema']> }) => {
+export const put = <T extends SchemaModelDefinition>({ db, name, type, value }: { db: Database, name: string, type: T, value: z.infer<T['schema']> }) => {
   const parseResults = type.schema.safeParse(value)
   if (!parseResults.success) {
     return { success: false as const, error: parseResults.error, value }
   }
 
-  const key = getKey({ model: type, id: value.$id })
+  const key = getKey({ name, id: value.$id })
   db.putSync(key, parseResults.data)
 
   return { success: true as const, error: undefined, value }
 }
 
-const getKey = ({ model, id }: { model: Model, id: string }) => {
-  return [RECORD_PREFIX, model.model, id]
+const getKey = ({ name, id }: { name: string, id: string }) => {
+  return [RECORD_PREFIX, name, id]
 }
-const firstModelKey = (model: Model) => [RECORD_PREFIX, model.model]
+const firstModelKey = (modelName: string) => [RECORD_PREFIX, modelName]
 
 
 interface Migration {
   name: string
-  modelsBeforeMigration?: Model[]
-  modelsAfterMigration?: Model[]
+  modelsBeforeMigration?: Record<string, SchemaModelDefinition>,
+  modelsAfterMigration?: Record<string, SchemaModelDefinition>,
   migration: ({ db }: { db: Database }) => void
 }
 
 
 class MigrationRunner {
 
-  MigrationModel = defineModelUnsafe({ model: '$migrations' })({
-    migrationsRun: z.string().array(),
-    modelVersions: z.record(z.string()),
-  })
+  MigrationSchema = defineSchema({
+    [`${RECORD_PREFIX}migrations`]: defineModel({
+      migrationsRun: z.string().array(),
+      modelVersions: z.record(z.string()),
+    })
+  }, { allowUnsafeModelName: true })
+
+  models: ReturnType<typeof this.MigrationSchema>;
 
   loadRunMigrations() {
-    const existing = this.MigrationModel.helper(this.db).get('singleton')
+
+    const existing = this.models.$migrations.get('singleton')
     if (!existing) {
-      const result = this.MigrationModel.helper(this.db).put({
+      const result = this.models.$migrations.put({
         $id: 'singleton',
         migrationsRun: [],
         modelVersions: {}
@@ -154,7 +160,8 @@ class MigrationRunner {
 
   updateRunMigrations(migrationName: string) {
     const existing = this.loadRunMigrations()!
-    this.MigrationModel.helper(this.db).put({
+
+    this.models.$migrations.put({
       ...existing,
       migrationsRun: existing.migrationsRun.concat([migrationName])
     })
@@ -173,6 +180,8 @@ class MigrationRunner {
         throw new Error('migration with empty space name')
       }
     })
+
+    this.models = this.MigrationSchema({ db })
   }
 
   run() {
@@ -210,21 +219,29 @@ class MigrationRunner {
         return
       }
 
-      ; (migration.modelsBeforeMigration ?? []).forEach(model => {
-        const helper = new ModelHelper(this.db, model)
-        for (let entry of helper.all()) {
-          // implicitly validating all model records
-        }
-      })
+      if (migration.modelsBeforeMigration) {
+        const models = defineSchema(migration.modelsBeforeMigration)({ db: this.db })
+        Object.keys(migration.modelsBeforeMigration ?? {}).forEach(modelName => {
 
-      migration.migration({ db: this.db })
-
-        ; (migration.modelsAfterMigration ?? []).forEach(model => {
-          const helper = new ModelHelper(this.db, model)
-          for (let entry of helper.all()) {
+          for (let entry of models[modelName].all()) {
             // implicitly validating all model records
           }
         })
+      }
+
+
+      migration.migration({ db: this.db })
+
+
+      if (migration.modelsAfterMigration) {
+        const models = defineSchema(migration.modelsAfterMigration)({ db: this.db })
+        Object.keys(migration.modelsAfterMigration ?? {}).forEach(modelName => {
+
+          for (let entry of models[modelName].all()) {
+            // implicitly validating all model records
+          }
+        })
+      }
 
       this.updateRunMigrations(migration.name)
     })
