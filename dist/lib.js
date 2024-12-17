@@ -1,4 +1,4 @@
-import {equals as $lSb2y$equals} from "ramda";
+import {mapObjIndexed as $lSb2y$mapObjIndexed, equals as $lSb2y$equals} from "ramda";
 import {z as $lSb2y$z} from "zod";
 import {v4 as $lSb2y$v4} from "uuid";
 
@@ -11,67 +11,66 @@ const $12d95564f480720d$var$baseModelInstanceValidator = (0, $lSb2y$z).object({
     $model: (0, $lSb2y$z).string()
 });
 class $12d95564f480720d$export$d2a2b5cdc8179a21 {
-    constructor(db, model){
+    constructor(db, name, model){
         this.db = db;
+        this.name = name;
         this.model = model;
     }
     get(id) {
         return $12d95564f480720d$export$3988ae62b71be9a3({
             db: this.db,
             type: this.model,
-            id: id
+            id: id,
+            name: this.name
         });
     }
     put(value) {
         return $12d95564f480720d$export$327f7b26ebf455db({
             db: this.db,
             type: this.model,
+            name: this.name,
             value: {
                 ...value,
                 $id: value['$id'] ?? (0, $lSb2y$v4)(),
-                $model: value['$model'] ?? this.model.model
+                $model: value['$model'] ?? this.name
             }
         });
     }
     all() {
         return $12d95564f480720d$export$84bf76cd7afc7469({
             db: this.db,
-            model: this.model
+            model: this.model,
+            name: this.name
         });
     }
 }
-const $12d95564f480720d$export$acd55aa037e791bb = ({ model: model })=>(schema)=>{
-        if (model.includes($12d95564f480720d$var$RECORD_PREFIX)) throw new Error(`model ${model} contains illegal characters reserved for ORM '${$12d95564f480720d$var$RECORD_PREFIX}'`);
-        const props = Object.keys(schema);
-        if (props.includes('$id') || props.includes('$model')) throw new Error(`model ${model} can't contain any properties that are prefixed with $`);
-        return $12d95564f480720d$var$defineModelUnsafe({
-            model: model
-        })(schema);
+const $12d95564f480720d$export$647a65c929c59956 = (models, options)=>({ db: db })=>{
+        const foo = (0, $lSb2y$mapObjIndexed)((def, name)=>{
+            if (!options?.allowUnsafeModelName && name.includes($12d95564f480720d$var$RECORD_PREFIX)) throw new Error(`model ${name} contains illegal characters reserved for ORM '${$12d95564f480720d$var$RECORD_PREFIX}'`);
+            return new $12d95564f480720d$export$d2a2b5cdc8179a21(db, name, def);
+        }, models);
+        return foo;
     };
-const $12d95564f480720d$var$defineModelUnsafe = ({ model: model })=>(schema)=>{
-        const finalSchema = $12d95564f480720d$var$baseModelInstanceValidator.extend(schema);
-        const definedModel = {
-            model: model,
-            schema: finalSchema,
-            helper (db) {
-                return new $12d95564f480720d$export$d2a2b5cdc8179a21(db, definedModel);
-            }
-        };
-        return definedModel;
+const $12d95564f480720d$export$acd55aa037e791bb = (schema)=>{
+    const unallowedProps = Object.keys(schema).filter((p)=>p.startsWith($12d95564f480720d$var$RECORD_PREFIX));
+    if (unallowedProps.length > 0) throw new Error(`model can't contain any properties that are prefixed with $. found props: ${unallowedProps.join(', ')}`);
+    return {
+        schema: $12d95564f480720d$var$baseModelInstanceValidator.extend(schema)
     };
-function* $12d95564f480720d$export$84bf76cd7afc7469({ db: db, model: model }) {
+};
+function* $12d95564f480720d$export$84bf76cd7afc7469({ db: db, model: model, name: name }) {
     for (const entry of db.getRange({
-        start: $12d95564f480720d$var$firstModelKey(model)
+        start: $12d95564f480720d$var$firstModelKey(name)
     })){
         const baseParseResult = $12d95564f480720d$var$baseModelInstanceValidator.safeParse(entry.value);
         if (!baseParseResult.success) /* left the collection range */ return;
-        if (baseParseResult.data.$model !== model.model) /* left the collection range */ return;
+        if (baseParseResult.data.$model !== name) /* left the collection range */ return;
         const value = model.schema.parse(entry.value);
         const key = $12d95564f480720d$var$getKey({
-            model: model,
+            name: name,
             id: value.$id
         });
-        if (!(0, $lSb2y$equals)(entry.key, key)) throw new Error(`internal data integrity problem. retriveved model ${model.model} with key ${String(entry.key)} but expected key was ${key}`);
+        if (!(0, $lSb2y$equals)(entry.key, key)) throw new Error(`internal data integrity problem. retriveved model ${name} with key ${String(entry.key)} but expected key was ${key}`);
         yield {
             key: key,
             value: value,
@@ -80,16 +79,16 @@ function* $12d95564f480720d$export$84bf76cd7afc7469({ db: db, model: model }) {
     }
     return;
 }
-const $12d95564f480720d$export$3988ae62b71be9a3 = ({ db: db, type: type, id: id })=>{
+const $12d95564f480720d$export$3988ae62b71be9a3 = ({ db: db, name: name, type: type, id: id })=>{
     const key = $12d95564f480720d$var$getKey({
-        model: type,
+        name: name,
         id: id
     });
     const value = db.get(key);
     if (value === undefined) return undefined;
     return type.schema.parse(value);
 };
-const $12d95564f480720d$export$327f7b26ebf455db = ({ db: db, type: type, value: value })=>{
+const $12d95564f480720d$export$327f7b26ebf455db = ({ db: db, name: name, type: type, value: value })=>{
     const parseResults = type.schema.safeParse(value);
     if (!parseResults.success) return {
         success: false,
@@ -97,7 +96,7 @@ const $12d95564f480720d$export$327f7b26ebf455db = ({ db: db, type: type, value: 
         value: value
     };
     const key = $12d95564f480720d$var$getKey({
-        model: type,
+        name: name,
         id: value.$id
     });
     db.putSync(key, parseResults.data);
@@ -107,22 +106,22 @@ const $12d95564f480720d$export$327f7b26ebf455db = ({ db: db, type: type, value: 
         value: value
     };
 };
-const $12d95564f480720d$var$getKey = ({ model: model, id: id })=>{
+const $12d95564f480720d$var$getKey = ({ name: name, id: id })=>{
     return [
         $12d95564f480720d$var$RECORD_PREFIX,
-        model.model,
+        name,
         id
     ];
 };
-const $12d95564f480720d$var$firstModelKey = (model)=>[
+const $12d95564f480720d$var$firstModelKey = (modelName)=>[
         $12d95564f480720d$var$RECORD_PREFIX,
-        model.model
+        modelName
     ];
 class $12d95564f480720d$var$MigrationRunner {
     loadRunMigrations() {
-        const existing = this.MigrationModel.helper(this.db).get('singleton');
+        const existing = this.models.$migrations.get('singleton');
         if (!existing) {
-            const result = this.MigrationModel.helper(this.db).put({
+            const result = this.models.$migrations.put({
                 $id: 'singleton',
                 migrationsRun: [],
                 modelVersions: {}
@@ -134,7 +133,7 @@ class $12d95564f480720d$var$MigrationRunner {
     }
     updateRunMigrations(migrationName) {
         const existing = this.loadRunMigrations();
-        this.MigrationModel.helper(this.db).put({
+        this.models.$migrations.put({
             ...existing,
             migrationsRun: existing.migrationsRun.concat([
                 migrationName
@@ -144,17 +143,22 @@ class $12d95564f480720d$var$MigrationRunner {
     constructor(db, migrations){
         this.db = db;
         this.migrations = migrations;
-        this.MigrationModel = $12d95564f480720d$var$defineModelUnsafe({
-            model: '$migrations'
-        })({
-            migrationsRun: (0, $lSb2y$z).string().array(),
-            modelVersions: (0, $lSb2y$z).record((0, $lSb2y$z).string())
+        this.MigrationSchema = $12d95564f480720d$export$647a65c929c59956({
+            [`${$12d95564f480720d$var$RECORD_PREFIX}migrations`]: $12d95564f480720d$export$acd55aa037e791bb({
+                migrationsRun: (0, $lSb2y$z).string().array(),
+                modelVersions: (0, $lSb2y$z).record((0, $lSb2y$z).string())
+            })
+        }, {
+            allowUnsafeModelName: true
         });
         const uniqueMigrationNames = new Set(this.migrations.map((m)=>m.name));
         if (uniqueMigrationNames.size !== this.migrations.length) throw new Error('duplicate migration names');
         this.migrations.forEach((m)=>{
             if (m.name.trim().length !== m.name.length) throw new Error(`migration '${m.name}' contains whitespace in name`);
             if (m.name.length === 0) throw new Error('migration with empty space name');
+        });
+        this.models = this.MigrationSchema({
+            db: db
         });
     }
     run() {
@@ -177,17 +181,25 @@ class $12d95564f480720d$var$MigrationRunner {
         this.db.transactionSync(()=>{
             const migrations = this.loadRunMigrations();
             if (migrations.migrationsRun.includes(migration.name)) return;
-            (migration.modelsBeforeMigration ?? []).forEach((model)=>{
-                const helper = new $12d95564f480720d$export$d2a2b5cdc8179a21(this.db, model);
-                for (let entry of helper.all());
-            });
+            if (migration.modelsBeforeMigration) {
+                const models = $12d95564f480720d$export$647a65c929c59956(migration.modelsBeforeMigration)({
+                    db: this.db
+                });
+                Object.keys(migration.modelsBeforeMigration ?? {}).forEach((modelName)=>{
+                    for (let entry of models[modelName].all());
+                });
+            }
             migration.migration({
                 db: this.db
             });
-            (migration.modelsAfterMigration ?? []).forEach((model)=>{
-                const helper = new $12d95564f480720d$export$d2a2b5cdc8179a21(this.db, model);
-                for (let entry of helper.all());
-            });
+            if (migration.modelsAfterMigration) {
+                const models = $12d95564f480720d$export$647a65c929c59956(migration.modelsAfterMigration)({
+                    db: this.db
+                });
+                Object.keys(migration.modelsAfterMigration ?? {}).forEach((modelName)=>{
+                    for (let entry of models[modelName].all());
+                });
+            }
             this.updateRunMigrations(migration.name);
         });
     }
@@ -198,5 +210,5 @@ function $12d95564f480720d$export$ce7f407e15fce6b5(db, migrations) {
 }
 
 
-export {$12d95564f480720d$export$d2a2b5cdc8179a21 as ModelHelper, $12d95564f480720d$export$3988ae62b71be9a3 as get, $12d95564f480720d$export$327f7b26ebf455db as put, $12d95564f480720d$export$84bf76cd7afc7469 as all, $12d95564f480720d$export$acd55aa037e791bb as defineModel, $12d95564f480720d$export$ce7f407e15fce6b5 as migrate};
+export {$12d95564f480720d$export$d2a2b5cdc8179a21 as ModelHelper, $12d95564f480720d$export$3988ae62b71be9a3 as get, $12d95564f480720d$export$327f7b26ebf455db as put, $12d95564f480720d$export$84bf76cd7afc7469 as all, $12d95564f480720d$export$647a65c929c59956 as defineSchema, $12d95564f480720d$export$acd55aa037e791bb as defineModel, $12d95564f480720d$export$ce7f407e15fce6b5 as migrate};
 //# sourceMappingURL=lib.js.map
